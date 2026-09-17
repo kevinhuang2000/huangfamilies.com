@@ -1135,6 +1135,32 @@ function enableDirectSelection() {
       "click",
       function (event) {
 
+        /*
+          Ctrl + 点击链接：
+          不装修，直接在左侧预览区进入该页面
+        */
+
+        const link =
+          element.closest("a");
+
+        if (event.ctrlKey && link) {
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          previewFrame.contentWindow.location.href =
+            link.href;
+
+          return;
+
+        }
+
+
+        /*
+          普通单击：
+          阻止链接跳转，进入装修模式
+        */
+
         event.preventDefault();
         event.stopPropagation();
 
@@ -1152,7 +1178,6 @@ function enableDirectSelection() {
 
       }
     );
-
   });
 
 }
