@@ -491,7 +491,29 @@
         </div>
 
       </div>
+<!-- Page Background -->
 
+<div class="control-group">
+
+  <label>
+    页面背景
+  </label>
+
+  <div class="color-row">
+
+    <input
+      id="pageBackground"
+      type="color"
+      value="#f7f4ed">
+
+    <input
+      id="pageBackgroundText"
+      type="text"
+      value="#f7f4ed">
+
+  </div>
+
+</div>
 <!-- Image Block -->
 
 <div class="two-column">
@@ -609,7 +631,11 @@
     const moveY = document.getElementById("moveY");
 const imageWidth =
   document.getElementById("imageWidth");
+const pageBackground =
+  document.getElementById("pageBackground");
 
+const pageBackgroundText =
+  document.getElementById("pageBackgroundText");
 const imageRadius =
   document.getElementById("imageRadius");
     const resetButton = document.getElementById("resetButton");
@@ -1036,7 +1062,89 @@ imageRadius
       control.addEventListener("change", applyChanges);
 
     });
+pageBackground.addEventListener("input", applyPageBackground);
+pageBackground.addEventListener("change", applyPageBackground);
 
+pageBackgroundText.addEventListener("input", applyPageBackground);
+pageBackgroundText.addEventListener("change", applyPageBackground);
+
+
+function applyPageBackground() {
+
+  const doc =
+    previewFrame.contentDocument ||
+    previewFrame.contentWindow.document;
+
+  let color =
+    pageBackgroundText.value;
+
+  if (
+    document.activeElement === pageBackground
+  ) {
+
+    color =
+      pageBackground.value;
+
+    pageBackgroundText.value =
+      color;
+
+  } else if (
+    /^#[0-9A-Fa-f]{6}$/.test(pageBackgroundText.value)
+  ) {
+
+    pageBackground.value =
+      pageBackgroundText.value;
+
+    color =
+      pageBackgroundText.value;
+
+  } else {
+
+    return;
+
+  }
+
+  doc.body.style.backgroundColor =
+    color;
+doc.body.style.backgroundColor =
+  color;
+
+
+const page =
+  getCurrentPageId();
+
+const changeId =
+  page + "::PAGE_BACKGROUND";
+
+
+savedChanges[changeId] = {
+
+  page: page,
+
+  selector:
+    "::PAGE_BACKGROUND",
+
+  label:
+    "页面背景",
+
+  type:
+    "pageBackground",
+
+  value:
+    color,
+
+  updatedAt:
+    new Date().toISOString()
+
+};
+
+
+writeSavedChanges();
+
+updateSaveStatus("saved");
+
+}
+}
 
 function applyChanges() {
 
@@ -1227,7 +1335,22 @@ const page =
       if (change.page !== page) {
         return;
       }
+if (change.type === "pageBackground") {
 
+  doc.body.style.backgroundColor =
+    change.value;
+
+  pageBackground.value =
+    change.value;
+
+  pageBackgroundText.value =
+    change.value;
+
+  restoredCount += 1;
+
+  return;
+
+}
 
       let element = null;
 
