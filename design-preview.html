@@ -582,7 +582,71 @@
 
     let originalStyle = "";
     let originalHTML = "";
+    /*
+      =====================================================
+      v0.3｜Kevin 装修修改持久化存储
+      =====================================================
 
+      Save ≠ Publish
+
+      1. Kevin 的装修修改自动保存到浏览器 localStorage。
+      2. 刷新、关闭浏览器后，修改仍然保留。
+      3. 保存的修改属于“待发布修改”。
+      4. 此阶段仍然不直接修改 GitHub 正式网页。
+    */
+
+    const STORAGE_KEY =
+      "huangfamilies-design-changes-v0.3";
+
+    let savedChanges = loadSavedChanges();
+
+
+    function loadSavedChanges() {
+
+      try {
+
+        const saved =
+          localStorage.getItem(STORAGE_KEY);
+
+        if (!saved) {
+          return {};
+        }
+
+        return JSON.parse(saved);
+
+      } catch (error) {
+
+        console.log(
+          "读取装修修改失败：",
+          error
+        );
+
+        return {};
+
+      }
+
+    }
+
+
+    function writeSavedChanges() {
+
+      try {
+
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(savedChanges)
+        );
+
+      } catch (error) {
+
+        console.log(
+          "保存装修修改失败：",
+          error
+        );
+
+      }
+
+    }
 
     /*
       页面切换
