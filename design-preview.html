@@ -490,7 +490,9 @@
 
       </div>
 
-
+<div class="status" id="saveStatusBox">
+  ○ 尚无待发布修改
+</div>
       <div class="status" id="statusBox">
         当前：等待选择文字对象。
       </div>
@@ -577,7 +579,8 @@
     const cssOutput = document.getElementById("cssOutput");
     const statusBox = document.getElementById("statusBox");
 
-
+const saveStatusBox =
+  document.getElementById("saveStatusBox");
     let selectedElement = null;
 
     let originalStyle = "";
@@ -647,7 +650,37 @@
       }
 
     }
+function updateSaveStatus(mode) {
 
+  const count =
+    Object.keys(savedChanges).length;
+
+  if (count === 0) {
+
+    saveStatusBox.textContent =
+      "○ 尚无待发布修改";
+
+    return;
+  }
+
+
+  if (mode === "restored") {
+
+    saveStatusBox.textContent =
+      "✓ 已恢复 ｜ 待发布 " +
+      count +
+      " 项";
+
+    return;
+  }
+
+
+  saveStatusBox.textContent =
+    "✓ 已自动保存 ｜ 待发布 " +
+    count +
+    " 项";
+
+}
     /*
       页面切换
     */
@@ -715,15 +748,19 @@ enableDirectSelection();
 
 if (restoredCount > 0) {
 
+  updateSaveStatus("restored");
+
   statusBox.textContent =
-    "已恢复待发布修改：" +
-    restoredCount +
-    " 项";
+    "页面已加载。可以继续装修。";
 
 } else {
 
+  updateSaveStatus();
+
   statusBox.textContent =
     "页面已加载。可以直接点击左侧文字进行装修。";
+
+}
 
 }
 
@@ -1011,10 +1048,7 @@ function applyChanges() {
   writeSavedChanges();
 
 
-  statusBox.textContent =
-    "已自动保存｜待发布：" +
-    Object.keys(savedChanges).length +
-    " 项";
+updateSaveStatus("saved");
 
 }
 /*
