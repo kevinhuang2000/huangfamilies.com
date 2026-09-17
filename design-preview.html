@@ -492,7 +492,42 @@
 
       </div>
 
+<!-- Image Block -->
 
+<div class="two-column">
+
+  <div class="control-group">
+
+    <label for="imageWidth">
+      图片宽度 %
+    </label>
+
+    <input
+      id="imageWidth"
+      type="number"
+      min="10"
+      max="100"
+      value="100">
+
+  </div>
+
+
+  <div class="control-group">
+
+    <label for="imageRadius">
+      图片圆角 px
+    </label>
+
+    <input
+      id="imageRadius"
+      type="number"
+      min="0"
+      max="200"
+      value="0">
+
+  </div>
+
+</div>
       <div class="status" id="statusBox">
         当前：等待选择文字对象。
       </div>
@@ -572,7 +607,11 @@
 
     const moveX = document.getElementById("moveX");
     const moveY = document.getElementById("moveY");
+const imageWidth =
+  document.getElementById("imageWidth");
 
+const imageRadius =
+  document.getElementById("imageRadius");
     const resetButton = document.getElementById("resetButton");
     const generateButton = document.getElementById("generateButton");
 
@@ -957,7 +996,17 @@ function buildElementList() {
 
       moveX.value = 0;
       moveY.value = 0;
+if (selectedElement.tagName === "IMG") {
 
+  imageWidth.value =
+    parseFloat(style.width) /
+    selectedElement.parentElement.clientWidth *
+    100 || 100;
+
+  imageRadius.value =
+    parseFloat(style.borderRadius) || 0;
+
+}
     }
 
 
@@ -973,10 +1022,12 @@ function buildElementList() {
       fontColor,
       fontColorText,
       lineHeight,
-      letterSpacing,
-      moveX,
-      moveY
-    ];
+letterSpacing,
+moveX,
+moveY,
+imageWidth,
+imageRadius
+];
 
 
     liveControls.forEach(function (control) {
@@ -1070,7 +1121,19 @@ function applyChanges() {
     "px, " +
     moveY.value +
     "px)";
+/*
+  Image Block
+*/
 
+if (selectedElement.tagName === "IMG") {
+
+  selectedElement.style.width =
+    imageWidth.value + "%";
+
+  selectedElement.style.borderRadius =
+    imageRadius.value + "px";
+
+}
 
   /*
     =====================================================
@@ -1118,8 +1181,10 @@ const page =
       color: color,
       lineHeight: lineHeight.value,
       letterSpacing: letterSpacing.value,
-      moveX: moveX.value,
-      moveY: moveY.value
+moveX: moveX.value,
+moveY: moveY.value,
+imageWidth: imageWidth.value,
+imageRadius: imageRadius.value
     },
 
     updatedAt:
@@ -1241,7 +1306,19 @@ const page =
         "px, " +
         (style.moveY || 0) +
         "px)";
+if (element.tagName === "IMG") {
 
+  element.style.width =
+    style.imageWidth
+      ? style.imageWidth + "%"
+      : "";
+
+  element.style.borderRadius =
+    style.imageRadius !== undefined
+      ? style.imageRadius + "px"
+      : "";
+
+}
       restoredCount += 1;
 
     });
