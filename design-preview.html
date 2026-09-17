@@ -826,7 +826,21 @@ function getCurrentPageId() {
 
     }
 
-    return pageId || "index.html";
+    pageId =
+      pageId.replace(/^\/+|\/+$/g, "");
+
+    if (!pageId) {
+      return "index.html";
+    }
+
+    const lastPart =
+      pageId.split("/").pop();
+
+    if (!lastPart.includes(".")) {
+      pageId += "/index.html";
+    }
+
+    return pageId;
 
   } catch (error) {
 
