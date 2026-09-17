@@ -849,93 +849,160 @@ function buildElementList() {
     });
 
 
-    function applyChanges() {
+function applyChanges() {
 
-      if (!selectedElement) return;
+  if (!selectedElement) return;
 
+  /*
+    文字内容
+  */
 
-      /*
-        文字内容
-        textarea 换行转换为 <br>
-      */
-
-      selectedElement.innerHTML =
-        escapeHTML(textContent.value)
-        .replace(/\n/g, "<br>");
+  selectedElement.innerHTML =
+    escapeHTML(textContent.value)
+    .replace(/\n/g, "<br>");
 
 
-      /*
-        字体
-      */
+  /*
+    字体
+  */
 
-      selectedElement.style.fontFamily =
-        fontFamily.value;
-
-
-      /*
-        字号
-      */
-
-      selectedElement.style.fontSize =
-        fontSize.value + "px";
+  selectedElement.style.fontFamily =
+    fontFamily.value;
 
 
-      /*
-        字重
-      */
+  /*
+    字号
+  */
 
-      selectedElement.style.fontWeight =
-        fontWeight.value;
-
-
-      /*
-        颜色同步
-      */
-
-      let color = fontColorText.value;
-
-      if (
-        document.activeElement === fontColor
-      ) {
-
-        color = fontColor.value;
-        fontColorText.value = color;
-
-      } else if (
-        /^#[0-9A-Fa-f]{6}$/.test(fontColorText.value)
-      ) {
-
-        fontColor.value = fontColorText.value;
-        color = fontColorText.value;
-
-      }
-
-      selectedElement.style.color = color;
+  selectedElement.style.fontSize =
+    fontSize.value + "px";
 
 
-      /*
-        行距 / 字距
-      */
+  /*
+    字重
+  */
 
-      selectedElement.style.lineHeight =
-        lineHeight.value;
-
-      selectedElement.style.letterSpacing =
-        letterSpacing.value + "px";
+  selectedElement.style.fontWeight =
+    fontWeight.value;
 
 
-      /*
-        X / Y 位置
-      */
+  /*
+    颜色同步
+  */
 
-      selectedElement.style.transform =
-        "translate(" +
-        moveX.value +
-        "px, " +
-        moveY.value +
-        "px)";
+  let color = fontColorText.value;
 
-    }
+  if (
+    document.activeElement === fontColor
+  ) {
+
+    color = fontColor.value;
+    fontColorText.value = color;
+
+  } else if (
+    /^#[0-9A-Fa-f]{6}$/.test(fontColorText.value)
+  ) {
+
+    fontColor.value = fontColorText.value;
+    color = fontColorText.value;
+
+  }
+
+  selectedElement.style.color = color;
+
+
+  /*
+    行距 / 字距
+  */
+
+  selectedElement.style.lineHeight =
+    lineHeight.value;
+
+  selectedElement.style.letterSpacing =
+    letterSpacing.value + "px";
+
+
+  /*
+    X / Y
+  */
+
+  selectedElement.style.transform =
+    "translate(" +
+    moveX.value +
+    "px, " +
+    moveY.value +
+    "px)";
+
+
+  /*
+    =====================================================
+    v0.3｜Auto Save
+    =====================================================
+  */
+
+  const page =
+    pageSelect.value;
+
+  const selector =
+    elementSelect.value;
+
+  if (!page || !selector) {
+    return;
+  }
+
+
+  /*
+    Page + Selector 组成唯一修改 ID
+  */
+
+  const changeId =
+    page + "::" + selector;
+
+
+  savedChanges[changeId] = {
+
+    page: page,
+
+    selector: selector,
+
+    label:
+      elementSelect.options[
+        elementSelect.selectedIndex
+      ].text,
+
+    text:
+      textContent.value,
+
+    style: {
+      fontFamily: fontFamily.value,
+      fontSize: fontSize.value,
+      fontWeight: fontWeight.value,
+      color: color,
+      lineHeight: lineHeight.value,
+      letterSpacing: letterSpacing.value,
+      moveX: moveX.value,
+      moveY: moveY.value
+    },
+
+    updatedAt:
+      new Date().toISOString()
+
+  };
+
+
+  /*
+    写入浏览器持久存储
+  */
+
+  writeSavedChanges();
+
+
+  statusBox.textContent =
+    "已自动保存｜待发布：" +
+    Object.keys(savedChanges).length +
+    " 项";
+
+}
 
 
     /*
