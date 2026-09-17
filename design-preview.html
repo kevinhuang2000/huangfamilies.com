@@ -646,6 +646,39 @@
 
 previewFrame.addEventListener("load", function () {
 
+  /*
+    读取 iframe 当前真实页面，
+    防止页面选择器与左侧实际页面不同步
+  */
+
+  try {
+
+    const currentPath =
+      previewFrame.contentWindow.location.pathname;
+
+    const currentFile =
+      currentPath.split("/").pop() || "index.html";
+
+    const validPages = [
+      "index.html",
+      "huangshi.html",
+      "misterwutong.html",
+      "xiuqizhiping.html"
+    ];
+
+    if (validPages.includes(currentFile)) {
+      pageSelect.value = currentFile;
+    }
+
+  } catch (error) {
+
+    console.log(
+      "无法读取当前预览页面：",
+      error
+    );
+
+  }
+
   buildElementList();
 
   enableDirectSelection();
