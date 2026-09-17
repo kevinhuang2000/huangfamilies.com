@@ -244,7 +244,7 @@
 
     <div class="designer-title">
       huangfamilies.com
-      <span>全站可视化装修台 v0.1</span>
+      <span>全站可视化装修台 v0.2</span>
     </div>
 
     <div class="page-switcher">
@@ -290,7 +290,7 @@
 
       <p class="panel-subtitle">
         选择页面和文字对象，调整参数后，左侧实时预览。
-        v0.1 只做预览，不直接修改正式网页。
+        v0.2 自动识别文字；只做预览，不直接修改正式网页。
       </p>
 
 
@@ -540,7 +540,7 @@
 
     /*
       =====================================================
-      huangfamilies.com 全站可视化装修台 v0.1
+      huangfamilies.com 全站可视化装修台 v0.2
 
       原则：
       1. 左侧 iframe 读取真实网页。
@@ -585,49 +585,6 @@
 
 
     /*
-      不同页面目前允许装修的对象。
-
-      后续增加页面，只需要继续在这里增加对象。
-    */
-
-    const editableElements = {
-
-      "index.html": [
-        [".eyebrow", "LIVING FAMILY ARCHIVE"],
-        ["h1", "黄氏数字家园"],
-        [".mission", "首页使命文字"],
-        [".sub", "首页底部说明"]
-      ],
-
-      "huangshi.html": [
-        [".eyebrow", "黄氏源流英文标题"],
-        ["h1", "黄氏源流"],
-        [".intro", "黄氏源流说明"]
-      ],
-
-"misterwutong.html": [
-  [".eyebrow", "MISTER WUTONG"],
-  ["h1", "忢同先生"],
-  [".identity", "Kevin 黄忢同"],
-  [".intro", "忢同先生说明"],
-
-  [".card:nth-child(1) h2", "在美12年"],
-  [".card:nth-child(1) p", "在美12年｜说明"],
-
-  [".card:nth-child(2) h2", "三孩父亲"],
-  [".card:nth-child(2) p", "三孩父亲｜说明"],
-
-  [".card:nth-child(3) h2", "阳明心学 · 道德经"],
-  [".card:nth-child(3) p", "阳明心学 · 道德经｜说明"]
-],
-
-      "xiuqizhiping.html": [
-        [".eyebrow", "FROM SELF TO SOCIETY"],
-        ["h1", "修齐治平"],
-        [".intro", "修齐治平说明"]
-      ]
-
-    };
 
 
     /*
@@ -702,27 +659,21 @@ previewFrame.addEventListener("load", function () {
       建立当前页面可编辑对象列表
     */
 
-    function buildElementList() {
+function buildElementList() {
 
-      const page = pageSelect.value;
+  /*
+    v0.2：
+    不再预先登记文字对象。
 
-      elementSelect.innerHTML =
-        '<option value="">请选择文字对象</option>';
+    页面加载时只清空菜单。
+    Kevin 点击左侧任意可见文字后，
+    系统自动识别并加入文字对象菜单。
+  */
 
-      const list = editableElements[page] || [];
+  elementSelect.innerHTML =
+    '<option value="">请直接点击左侧文字</option>';
 
-      list.forEach(function (item) {
-
-        const option = document.createElement("option");
-
-        option.value = item[0];
-        option.textContent = item[1];
-
-        elementSelect.appendChild(option);
-
-      });
-
-    }
+}
 
 
     /*
@@ -989,7 +940,7 @@ previewFrame.addEventListener("load", function () {
 
 
 /*
-/*
+
   =====================================================
   v0.2｜自动识别文字 + 左侧直接点选
   =====================================================
