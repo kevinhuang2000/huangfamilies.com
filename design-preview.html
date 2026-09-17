@@ -644,14 +644,16 @@
       iframe 加载完成
     */
 
-    previewFrame.addEventListener("load", function () {
+previewFrame.addEventListener("load", function () {
 
-      buildElementList();
+  buildElementList();
 
-      statusBox.textContent =
-        "页面已加载。请选择右侧文字对象开始装修。";
+  enableDirectSelection();
 
-    });
+  statusBox.textContent =
+    "页面已加载。可以直接点击左侧文字进行装修。";
+
+});
 
 
     /*
@@ -944,6 +946,174 @@
 
 
     /*
+/*
+  =====================================================
+  v0.2｜左侧直接点选文字
+  =====================================================
+*/
+
+function enableDirectSelection() {
+
+  const doc =
+    previewFrame.contentDocument ||
+    previewFrame.contentWindow.document;
+
+  const page = pageSelect.value;
+  const list = editableElements[page] || [];
+
+
+  /*
+    给当前页面所有可编辑对象增加点选能力
+  */
+
+  list.forEach(function (item) {
+
+    const selector = item[0];
+    const label = item[1];
+
+    const elements =
+      doc.querySelectorAll(selector);
+
+
+    elements.forEach(function (element) {
+
+      /*
+        鼠标经过时提示“这里可以编辑”
+      */
+
+      element.style.cursor = "pointer";
+
+
+      element.addEventListener(
+        "mouseenter",
+        function () {
+
+          if (element !== selectedElement) {
+
+            element.style.outline =
+              "2px dashed rgba(80, 80, 80, 0.45)";
+
+            element.style.outlineOffset =
+              "4px";
+
+          }
+
+        }
+      );
+
+
+      element.addEventListener(
+        "mouseleave",
+        function () {
+
+          if (element !== selectedElement) {
+
+            element.style.outline = "";
+            element.style.outlineOffset = "";
+
+          }
+
+        }
+      );
+
+
+      /*
+        点击文字 = 自动选择对象
+      */
+
+      element.addEventListener(
+        "click",
+        function (event) {
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          selectElementFromPreview(
+            selector,
+            label,
+            element
+          );
+
+        }
+      );
+
+    });
+
+  });
+
+}
+
+
+/*
+  左侧点选以后，
+  同步右侧控制台
+*/
+
+function selectElementFromPreview(
+  selector,
+  label,
+  element
+) {
+
+  /*
+    清除上一个对象的选中框
+  */
+
+  if (selectedElement) {
+
+    selectedElement.style.outline = "";
+    selectedElement.style.outlineOffset = "";
+
+  }
+
+
+  selectedElement = element;
+
+
+  /*
+    右侧下拉菜单同步
+  */
+
+  elementSelect.value = selector;
+
+
+  /*
+    保存当前原始状态
+  */
+
+  originalStyle =
+    selectedElement.getAttribute("style") || "";
+
+  originalHTML =
+    selectedElement.innerHTML;
+
+
+  /*
+    加选中框
+  */
+
+  selectedElement.style.outline =
+    "3px solid #e53935";
+
+  selectedElement.style.outlineOffset =
+    "5px";
+
+
+  /*
+    读取当前文字与样式
+  */
+
+  loadCurrentValues();
+
+
+  /*
+    状态提示
+  */
+
+  statusBox.textContent =
+    "已从左侧直接选中：" + label;
+
+}
       RGB → HEX
     */
 
