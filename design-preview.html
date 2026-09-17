@@ -713,22 +713,41 @@ previewFrame.addEventListener("load", function () {
 
   try {
 
-    const currentPath =
-      previewFrame.contentWindow.location.pathname;
+const currentPageId =
+  getCurrentPageId();
 
-    const currentFile =
-      currentPath.split("/").pop() || "index.html";
+/*
+  当前真实页面不再受四页面白名单限制。
 
-    const validPages = [
-      "index.html",
-      "huangshi.html",
-      "misterwutong.html",
-      "xiuqizhiping.html"
-    ];
+  已登记页面：
+  同步顶部页面选择器。
 
-    if (validPages.includes(currentFile)) {
-      pageSelect.value = currentFile;
-    }
+  新的第三级 / 第四级 / 更深页面：
+  自动加入选择器，并以真实页面路径作为 Page ID。
+*/
+
+let pageOption =
+  Array.from(pageSelect.options)
+    .find(function (option) {
+      return option.value === currentPageId;
+    });
+
+if (!pageOption) {
+
+  pageOption =
+    document.createElement("option");
+
+  pageOption.value =
+    currentPageId;
+
+  pageOption.textContent =
+    "当前页面｜" + currentPageId;
+
+  pageSelect.appendChild(pageOption);
+}
+
+pageSelect.value =
+  currentPageId;
 
   } catch (error) {
 
@@ -765,7 +784,62 @@ if (restoredCount > 0) {
 
 });
 
+/*
+  =====================================================
+  Content Node v0.1｜真实 Page ID
+  =====================================================
 
+  页面身份来自 iframe 当前真实 URL，
+  不再来自顶部四页面下拉菜单。
+
+  根目录页面：
+  /huangshi.html
+
+  未来深层页面：
+  /huangshi/america/new-york.html
+
+  都可以成为独立 Page ID。
+*/
+
+function getCurrentPageId() {
+
+  try {
+
+    const currentPath =
+      previewFrame.contentWindow.location.pathname;
+
+    const repoMarker =
+      "/huangfamilies.com/";
+
+    let pageId =
+      currentPath;
+
+    if (pageId.includes(repoMarker)) {
+
+      pageId =
+        pageId.split(repoMarker)[1];
+
+    } else {
+
+      pageId =
+        pageId.split("/").filter(Boolean).join("/");
+
+    }
+
+    return pageId || "index.html";
+
+  } catch (error) {
+
+    console.log(
+      "无法读取真实 Page ID：",
+      error
+    );
+
+    return pageSelect.value || "index.html";
+
+  }
+
+}
     /*
       建立当前页面可编辑对象列表
     */
@@ -990,8 +1064,8 @@ function applyChanges() {
     =====================================================
   */
 
-  const page =
-    pageSelect.value;
+const page =
+  getCurrentPageId();
 
   const selector =
     elementSelect.value;
@@ -1062,8 +1136,8 @@ function restoreSavedChangesForCurrentPage() {
     previewFrame.contentDocument ||
     previewFrame.contentWindow.document;
 
-  const page =
-    pageSelect.value;
+const page =
+  getCurrentPageId();
 
   let restoredCount = 0;
 
