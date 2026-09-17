@@ -989,10 +989,20 @@ previewFrame.addEventListener("load", function () {
 
 
 /*
+/*
   =====================================================
-  v0.2｜左侧直接点选文字
+  v0.2｜自动识别文字 + 左侧直接点选
   =====================================================
+
+  目标：
+  1. 不再依赖 editableElements 手工登记每一个文字对象。
+  2. 页面加载后自动寻找可见文字。
+  3. Kevin 看到什么文字，就可以直接点击什么文字。
+  4. 点击后自动生成该对象的唯一 selector。
+  5. 自动加入右侧“文字对象”菜单。
+  6. 自动读取当前文字和样式参数。
 */
+
 
 function enableDirectSelection() {
 
@@ -1000,86 +1010,148 @@ function enableDirectSelection() {
     previewFrame.contentDocument ||
     previewFrame.contentWindow.document;
 
-  const page = pageSelect.value;
-  const list = editableElements[page] || [];
-
 
   /*
-    给当前页面所有可编辑对象增加点选能力
+    找出页面中所有包含“直接文字”的元素。
+
+    这里不是只认 h1 / p / card，
+    而是根据页面真实 DOM 自动判断。
   */
 
-  list.forEach(function (item) {
-
-    const selector = item[0];
-    const label = item[1];
-
-    const elements =
-      doc.querySelectorAll(selector);
+  const allElements =
+    doc.body.querySelectorAll("*");
 
 
-    elements.forEach(function (element) {
+  allElements.forEach(function (element) {
 
-      /*
-        鼠标经过时提示“这里可以编辑”
-      */
+    /*
+      跳过不应该作为文字对象的元素
+    */
 
-      element.style.cursor = "pointer";
+    const blockedTags = [
+      "SCRIPT",
+      "STYLE",
+      "NOSCRIPT",
+      "SVG",
+      "PATH",
+      "BR",
+      "HR"
+    ];
 
-
-      element.addEventListener(
-        "mouseenter",
-        function () {
-
-          if (element !== selectedElement) {
-
-            element.style.outline =
-              "2px dashed rgba(80, 80, 80, 0.45)";
-
-            element.style.outlineOffset =
-              "4px";
-
-          }
-
-        }
-      );
+    if (blockedTags.includes(element.tagName)) {
+      return;
+    }
 
 
-      element.addEventListener(
-        "mouseleave",
-        function () {
+    /*
+      判断这个元素自己是否直接拥有文字。
 
-          if (element !== selectedElement) {
+      这样可以避免点击一个大 DIV 时，
+      一次选中整个页面或整张卡片。
+    */
 
-            element.style.outline = "";
-            element.style.outlineOffset = "";
+    const hasDirectText =
+      Array.from(element.childNodes)
+        .some(function (node) {
 
-          }
-
-        }
-      );
-
-
-      /*
-        点击文字 = 自动选择对象
-      */
-
-      element.addEventListener(
-        "click",
-        function (event) {
-
-          event.preventDefault();
-          event.stopPropagation();
-
-          selectElementFromPreview(
-            selector,
-            label,
-            element
+          return (
+            node.nodeType === Node.TEXT_NODE &&
+            node.textContent.trim() !== ""
           );
 
-        }
-      );
+        });
 
-    });
+
+    if (!hasDirectText) {
+      return;
+    }
+
+
+    /*
+      不可见文字不进入装修系统
+    */
+
+    const style =
+      previewFrame.contentWindow
+        .getComputedStyle(element);
+
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden"
+    ) {
+      return;
+    }
+
+
+    /*
+      鼠标经过：
+      告诉 Kevin “这里可以点”
+    */
+
+    element.style.cursor = "pointer";
+
+
+    element.addEventListener(
+      "mouseenter",
+      function (event) {
+
+        event.stopPropagation();
+
+        if (element !== selectedElement) {
+
+          element.style.outline =
+            "2px dashed rgba(80, 80, 80, 0.45)";
+
+          element.style.outlineOffset =
+            "4px";
+
+        }
+
+      }
+    );
+
+
+    element.addEventListener(
+      "mouseleave",
+      function () {
+
+        if (element !== selectedElement) {
+
+          element.style.outline = "";
+          element.style.outlineOffset = "";
+
+        }
+
+      }
+    );
+
+
+    /*
+      点击任意文字：
+      自动识别对象
+    */
+
+    element.addEventListener(
+      "click",
+      function (event) {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const selector =
+          createUniqueSelector(element);
+
+        const label =
+          createElementLabel(element);
+
+        selectElementFromPreview(
+          selector,
+          label,
+          element
+        );
+
+      }
+    );
 
   });
 
@@ -1087,8 +1159,220 @@ function enableDirectSelection() {
 
 
 /*
-  左侧点选以后，
-  同步右侧控制台
+  =====================================================
+  自动生成唯一 selector
+  =====================================================
+*/
+
+function createUniqueSelector(element) {
+
+  const doc =
+    previewFrame.contentDocument ||
+    previewFrame.contentWindow.document;
+
+
+  /*
+    第一优先：ID
+  */
+
+  if (element.id) {
+
+    const idSelector =
+      "#" + CSS.escape(element.id);
+
+    if (
+      doc.querySelectorAll(idSelector).length === 1
+    ) {
+      return idSelector;
+    }
+
+  }
+
+
+  /*
+    第二优先：
+    尝试 tag + class
+  */
+
+  if (element.classList.length > 0) {
+
+    const classSelector =
+      element.tagName.toLowerCase() +
+      "." +
+      Array.from(element.classList)
+        .map(function (className) {
+          return CSS.escape(className);
+        })
+        .join(".");
+
+    try {
+
+      if (
+        doc.querySelectorAll(classSelector).length === 1
+      ) {
+        return classSelector;
+      }
+
+    } catch (error) {
+
+      console.log(
+        "Class selector 无法使用：",
+        classSelector
+      );
+
+    }
+
+  }
+
+
+  /*
+    第三优先：
+    自动建立 DOM 路径。
+
+    例如：
+    .cards > .card:nth-of-type(2) > h2
+  */
+
+  const path = [];
+
+  let current = element;
+
+
+  while (
+    current &&
+    current !== doc.body
+  ) {
+
+    let part =
+      current.tagName.toLowerCase();
+
+
+    /*
+      如果当前节点有 ID，
+      到这里就可以停止继续向上寻找
+    */
+
+    if (current.id) {
+
+      part =
+        "#" + CSS.escape(current.id);
+
+      path.unshift(part);
+
+      break;
+
+    }
+
+
+    /*
+      优先加入 class，
+      增加 selector 可读性
+    */
+
+    if (current.classList.length > 0) {
+
+      part +=
+        "." +
+        Array.from(current.classList)
+          .map(function (className) {
+            return CSS.escape(className);
+          })
+          .join(".");
+
+    }
+
+
+    /*
+      如果同级存在相同 tag，
+      增加 nth-of-type，
+      保证能够区分第1、第2、第3张卡片。
+    */
+
+    const parent =
+      current.parentElement;
+
+    if (parent) {
+
+      const sameTagSiblings =
+        Array.from(parent.children)
+          .filter(function (child) {
+
+            return (
+              child.tagName === current.tagName
+            );
+
+          });
+
+
+      if (sameTagSiblings.length > 1) {
+
+        const index =
+          sameTagSiblings.indexOf(current) + 1;
+
+        part +=
+          ":nth-of-type(" +
+          index +
+          ")";
+
+      }
+
+    }
+
+
+    path.unshift(part);
+
+    current =
+      current.parentElement;
+
+  }
+
+
+  return path.join(" > ");
+
+}
+
+
+/*
+  =====================================================
+  自动生成右侧显示名称
+  =====================================================
+*/
+
+function createElementLabel(element) {
+
+  let text =
+    element.innerText
+      .trim()
+      .replace(/\s+/g, " ");
+
+
+  /*
+    右侧下拉菜单不要出现整段长文章。
+  */
+
+  if (text.length > 30) {
+
+    text =
+      text.substring(0, 30) +
+      "…";
+
+  }
+
+
+  if (text) {
+    return text;
+  }
+
+
+  return element.tagName.toLowerCase();
+
+}
+
+
+/*
+  =====================================================
+  左侧点选以后，同步右侧控制台
+  =====================================================
 */
 
 function selectElementFromPreview(
@@ -1113,7 +1397,47 @@ function selectElementFromPreview(
 
 
   /*
-    右侧下拉菜单同步
+    检查右侧菜单中是否已经存在这个对象。
+
+    如果不存在：
+    自动创建。
+
+    这就是取消手工登记的关键。
+  */
+
+  let existingOption =
+    Array.from(elementSelect.options)
+      .find(function (option) {
+
+        return option.value === selector;
+
+      });
+
+
+  if (!existingOption) {
+
+    const option =
+      document.createElement("option");
+
+    option.value = selector;
+    option.textContent = label;
+
+    elementSelect.appendChild(option);
+
+  } else {
+
+    /*
+      已存在时也更新显示名称，
+      防止文字修改后仍显示旧名称。
+    */
+
+    existingOption.textContent = label;
+
+  }
+
+
+  /*
+    右侧文字对象菜单同步
   */
 
   elementSelect.value = selector;
@@ -1131,7 +1455,7 @@ function selectElementFromPreview(
 
 
   /*
-    加选中框
+    红色选中框
   */
 
   selectedElement.style.outline =
@@ -1153,7 +1477,7 @@ function selectElementFromPreview(
   */
 
   statusBox.textContent =
-    "已从左侧直接选中：" + label;
+    "已自动识别并选中：" + label;
 
 }
  /*
