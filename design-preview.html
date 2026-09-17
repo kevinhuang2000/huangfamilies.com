@@ -1375,21 +1375,24 @@ function enableDirectSelection() {
       一次选中整个页面或整张卡片。
     */
 
-    const hasDirectText =
-      Array.from(element.childNodes)
-        .some(function (node) {
+const hasDirectText =
+  Array.from(element.childNodes)
+    .some(function (node) {
 
-          return (
-            node.nodeType === Node.TEXT_NODE &&
-            node.textContent.trim() !== ""
-          );
+      return (
+        node.nodeType === Node.TEXT_NODE &&
+        node.textContent.trim() !== ""
+      );
 
-        });
+    });
+
+const isImage =
+  element.tagName === "IMG";
 
 
-    if (!hasDirectText) {
-      return;
-    }
+if (!hasDirectText && !isImage) {
+  return;
+}
 
 
     /*
@@ -1689,7 +1692,16 @@ function createUniqueSelector(element) {
 */
 
 function createElementLabel(element) {
+if (element.tagName === "IMG") {
 
+  const alt =
+    element.getAttribute("alt") || "";
+
+  return alt
+    ? "图片｜" + alt
+    : "图片";
+
+}
   let text =
     element.innerText
       .trim()
