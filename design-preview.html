@@ -704,8 +704,38 @@ const saveStatusBox =
     const STORAGE_KEY =
       "huangfamilies-design-changes-v0.3";
 
-    let savedChanges = loadSavedChanges();
+    const VIRTUAL_NODE_STORAGE_KEY =
+      "huangfamilies-virtual-nodes-v0.1";
 
+    let savedChanges =
+      loadSavedChanges();
+
+    let virtualNodes = {};
+
+    let currentVirtualPageId = "";
+
+    try {
+
+      const storedVirtualNodes =
+        localStorage.getItem(
+          VIRTUAL_NODE_STORAGE_KEY
+        );
+
+      virtualNodes =
+        storedVirtualNodes
+          ? JSON.parse(storedVirtualNodes)
+          : {};
+
+    } catch (error) {
+
+      console.log(
+        "读取 Virtual Draft Tree 失败：",
+        error
+      );
+
+      virtualNodes = {};
+
+    }
 
     function loadSavedChanges() {
 
@@ -792,13 +822,36 @@ function updateSaveStatus(mode) {
 
       selectedElement = null;
 
-      previewFrame.src = this.value;
-
       elementSelect.innerHTML =
         '<option value="">请选择文字对象</option>';
 
+      if (
+        virtualNodes[this.value]
+      ) {
+
+        loadVirtualNode(
+          this.value
+        );
+
+        return;
+
+      }
+
+      currentVirtualPageId =
+        "";
+
+      previewFrame.removeAttribute(
+        "srcdoc"
+      );
+
+      previewFrame.src =
+        this.value;
+
       statusBox.textContent =
-        "正在加载：" + this.options[this.selectedIndex].text;
+        "正在加载：" +
+        this.options[
+          this.selectedIndex
+        ].text;
 
     });
 
@@ -905,7 +958,9 @@ if (restoredCount > 0) {
 */
 
 function getCurrentPageId() {
-
+  if (currentVirtualPageId) {
+    return currentVirtualPageId;
+  }
   try {
 
     const currentPath =
@@ -2181,6 +2236,175 @@ function getCurrentNodeParentPath() {
   Node Draft Builder
   =====================================================
 */
+/*
+  =====================================================
+  Virtual Draft Tree v0.1
+  =====================================================
+
+  Virtual Node：
+  只存在于装修台浏览器 localStorage。
+
+  它可以：
+  1. 立即进入；
+  2. 作为 Parent；
+  3. 继续创建下一级；
+  4. 刷新浏览器后恢复。
+
+  它不是 GitHub draft Real Create。
+*/
+
+function writeVirtualNodes() {
+
+  try {
+
+    localStorage.setItem(
+      VIRTUAL_NODE_STORAGE_KEY,
+      JSON.stringify(virtualNodes)
+    );
+
+  } catch (error) {
+
+    console.log(
+      "保存 Virtual Draft Tree 失败：",
+      error
+    );
+
+  }
+
+}
+
+
+function saveVirtualNode(
+  draft,
+  generatedHTML
+) {
+
+  virtualNodes[draft.pageId] = {
+
+    type:
+      draft.type,
+
+    title:
+      draft.title,
+
+    slug:
+      draft.slug,
+
+    parentPath:
+      draft.parentPath,
+
+    parentPageId:
+      draft.parentPageId,
+
+    draftPath:
+      draft.draftPath,
+
+    publishPath:
+      draft.publishPath,
+
+    pageId:
+      draft.pageId,
+
+    html:
+      generatedHTML,
+
+    updatedAt:
+      new Date().toISOString()
+
+  };
+
+  writeVirtualNodes();
+
+  addVirtualNodeOption(
+    draft.pageId,
+    draft.title
+  );
+
+}
+
+
+function addVirtualNodeOption(
+  pageId,
+  title
+) {
+
+  let option =
+    Array.from(pageSelect.options)
+      .find(function (item) {
+
+        return item.value === pageId;
+
+      });
+
+  if (!option) {
+
+    option =
+      document.createElement("option");
+
+    option.value =
+      pageId;
+
+    pageSelect.appendChild(
+      option
+    );
+
+  }
+
+  option.textContent =
+    "装修中｜" + title;
+
+  option.dataset.virtual =
+    "true";
+
+}
+
+
+function restoreVirtualNodeOptions() {
+
+  Object.values(virtualNodes)
+    .forEach(function (node) {
+
+      addVirtualNodeOption(
+        node.pageId,
+        node.title
+      );
+
+    });
+
+}
+
+
+function loadVirtualNode(pageId) {
+
+  const node =
+    virtualNodes[pageId];
+
+  if (!node) {
+    return false;
+  }
+
+  currentVirtualPageId =
+    pageId;
+
+  pageSelect.value =
+    pageId;
+
+  selectedElement =
+    null;
+
+  elementSelect.innerHTML =
+    '<option value="">请选择文字对象</option>';
+
+  previewFrame.srcdoc =
+    node.html;
+
+  statusBox.textContent =
+    "正在加载装修中的 Virtual Node：" +
+    node.title;
+
+  return true;
+
+}    
 function getRelativeHref(fromFile, toFile) {
 
   const fromParts =
@@ -2244,7 +2468,7 @@ function buildNodeDraft(type, title) {
     parentPageId: parentPageId,
 
     draftPath:
-      "_drafts/" + nodePath,
+      nodePath,
 
     publishPath:
       nodePath,
@@ -2293,14 +2517,29 @@ function showNodeDraft(type) {
     "<strong>Title：</strong>" + escapeHTML(draft.title) + "<br>" +
     "<strong>Slug：</strong>" + escapeHTML(draft.slug) + "<br>" +
     "<strong>Parent：</strong>" + escapeHTML(draft.parentPath || "/") + "<br>" +
-        "<strong>Draft Path：</strong>" + escapeHTML(draft.draftPath) + "<br>" +
+    "<strong>Draft Branch：</strong>draft<br>" +
+    "<strong>Draft Path：</strong>" + escapeHTML(draft.draftPath) + "<br>" +
+    "<strong>Publish Branch：</strong>main<br>" +
     "<strong>Publish Path：</strong>" + escapeHTML(draft.publishPath) + "<br><br>" +
     "<strong>完整 HTML：</strong>" +
     "<textarea readonly style=\"margin-top:8px; min-height:260px; font-family:Consolas, monospace;\">" +
     escapeHTML(generatedHTML) +
     "</textarea>" +
     "</div>";
+  /*
+    Create Package 同时登记为 Virtual Node。
+    此动作只写浏览器 localStorage，
+    不写 GitHub，不等于 Real Create。
+  */
 
+  saveVirtualNode(
+    draft,
+    generatedHTML
+  );
+
+  loadVirtualNode(
+    draft.pageId
+  );
 }
 /*
   =====================================================
@@ -2414,6 +2653,13 @@ function generateNodeHTML(draft) {
 </html>`;
 
 }    
+/*
+  =====================================================
+  Virtual Draft Tree｜Startup
+  =====================================================
+*/
+
+restoreVirtualNodeOptions();    
   </script>
 
 </body>
