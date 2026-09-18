@@ -287,6 +287,44 @@
     <aside class="control-panel">
 
       <h2 class="panel-title">装修控制台</h2>
+      <!--
+  =====================================================
+  Content Node Creator v0.1
+  =====================================================
+-->
+
+<div class="control-group" id="nodeCreator">
+
+  <label>添加内容节点</label>
+
+  <input
+    type="text"
+    id="nodeTitle"
+    placeholder="输入目录或页面名称"
+  >
+
+  <div style="display:flex; gap:8px; margin-top:8px;">
+
+    <button
+      type="button"
+      id="addFolderButton">
+      ＋ 添加目录
+    </button>
+
+    <button
+      type="button"
+      id="addPageButton">
+      ＋ 添加页面
+    </button>
+
+  </div>
+
+  <div
+    id="nodeDraftOutput"
+    style="margin-top:10px;">
+  </div>
+
+</div>
 <div class="status" id="saveStatusBox">
   ○ 尚无待发布修改
 </div>
@@ -2081,7 +2119,157 @@ function selectElementFromPreview(
       return div.innerHTML;
 
     }
+/*
+  =====================================================
+  Content Node Creator v0.1
+  Slug Helper
+  =====================================================
+*/
 
+function createNodeSlug(title) {
+
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\u4e00-\u9fff-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+}
+/*
+  =====================================================
+  Content Node Creator v0.1
+  Parent Path Helper
+  =====================================================
+*/
+
+function getCurrentNodeParentPath() {
+
+  const currentPageId =
+    getCurrentPageId();
+
+  if (currentPageId === "index.html") {
+    return "";
+  }
+
+  if (currentPageId.endsWith("/index.html")) {
+
+    return currentPageId
+      .replace(/\/index\.html$/, "");
+
+  }
+
+  const parts =
+    currentPageId.split("/");
+
+  parts.pop();
+
+  return parts.join("/");
+
+}   
+    /*
+  =====================================================
+  Content Node Creator v0.1
+  Node Draft Builder
+  =====================================================
+*/
+
+function buildNodeDraft(type, title) {
+
+  const cleanTitle =
+    title.trim();
+
+  const slug =
+    createNodeSlug(cleanTitle);
+
+  const parentPath =
+    getCurrentNodeParentPath();
+
+  let nodePath = "";
+
+  if (type === "folder") {
+
+    nodePath =
+      parentPath
+        ? parentPath + "/" + slug + "/index.html"
+        : slug + "/index.html";
+
+  } else {
+
+    nodePath =
+      parentPath
+        ? parentPath + "/" + slug + ".html"
+        : slug + ".html";
+
+  }
+
+  return {
+    type: type,
+    title: cleanTitle,
+    slug: slug,
+    parentPath: parentPath,
+    pageId: nodePath
+  };
+
+}
+    /*
+  =====================================================
+  Content Node Creator v0.1
+  Draft Output
+  =====================================================
+*/
+
+function showNodeDraft(type) {
+
+  const title =
+    document.getElementById("nodeTitle").value.trim();
+
+  const output =
+    document.getElementById("nodeDraftOutput");
+
+  if (!title) {
+
+    output.textContent =
+      "请输入目录或页面名称";
+
+    return;
+
+  }
+
+  const draft =
+    buildNodeDraft(type, title);
+
+  output.innerHTML =
+    "<strong>Type：</strong>" + escapeHTML(draft.type) + "<br>" +
+    "<strong>Title：</strong>" + escapeHTML(draft.title) + "<br>" +
+    "<strong>Slug：</strong>" + escapeHTML(draft.slug) + "<br>" +
+    "<strong>Parent：</strong>" + escapeHTML(draft.parentPath || "/") + "<br>" +
+    "<strong>Page ID：</strong>" + escapeHTML(draft.pageId);
+
+}
+/*
+  =====================================================
+  Content Node Creator v0.1
+  Button Events
+  =====================================================
+*/
+
+document
+  .getElementById("addFolderButton")
+  .addEventListener("click", function () {
+
+    showNodeDraft("folder");
+
+  });
+
+document
+  .getElementById("addPageButton")
+  .addEventListener("click", function () {
+
+    showNodeDraft("page");
+
+  });    
   </script>
 
 </body>
