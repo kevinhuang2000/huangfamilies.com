@@ -2160,6 +2160,13 @@ function getCurrentNodeParentPath() {
 
   }
 
+  if (!currentPageId.includes("/")) {
+
+    return currentPageId
+      .replace(/\.html$/, "");
+
+  }
+
   const parts =
     currentPageId.split("/");
 
@@ -2167,7 +2174,7 @@ function getCurrentNodeParentPath() {
 
   return parts.join("/");
 
-}   
+}
     /*
   =====================================================
   Content Node Creator v0.1
