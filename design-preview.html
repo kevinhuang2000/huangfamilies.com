@@ -2247,12 +2247,19 @@ function showNodeDraft(type) {
   const draft =
     buildNodeDraft(type, title);
 
+  const generatedHTML =
+    generateNodeHTML(draft);
+
   output.innerHTML =
     "<strong>Type：</strong>" + escapeHTML(draft.type) + "<br>" +
     "<strong>Title：</strong>" + escapeHTML(draft.title) + "<br>" +
     "<strong>Slug：</strong>" + escapeHTML(draft.slug) + "<br>" +
     "<strong>Parent：</strong>" + escapeHTML(draft.parentPath || "/") + "<br>" +
-    "<strong>Page ID：</strong>" + escapeHTML(draft.pageId);
+    "<strong>Page ID：</strong>" + escapeHTML(draft.pageId) + "<br><br>" +
+    "<strong>完整 HTML：</strong>" +
+    "<textarea readonly style=\"margin-top:8px; min-height:260px; font-family:Consolas, monospace;\">" +
+    escapeHTML(generatedHTML) +
+    "</textarea>";
 
 }
 /*
@@ -2277,6 +2284,95 @@ document
     showNodeDraft("page");
 
   });    
+/*
+  =====================================================
+  Content Node Creator v0.2
+  HTML Generator
+  =====================================================
+*/
+
+function generateNodeHTML(draft) {
+
+  const safeTitle =
+    escapeHTML(draft.title);
+
+  const parentHref =
+    draft.parentPath
+      ? "../index.html"
+      : "index.html";
+
+  const typeLabel =
+    draft.type === "folder"
+      ? "目录"
+      : "页面";
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>${safeTitle}｜江夏源流</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+      background: #f7f4ed;
+      color: #292722;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 80px 28px;
+    }
+
+    .breadcrumb {
+      margin-bottom: 45px;
+      font-size: 14px;
+    }
+
+    .breadcrumb a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    h1 {
+      margin-bottom: 18px;
+      font-size: 42px;
+    }
+
+    .lead {
+      font-size: 18px;
+      line-height: 1.9;
+    }
+  </style>
+</head>
+
+<body>
+
+  <main>
+
+    <div class="breadcrumb">
+      <a href="${parentHref}">返回上级</a>
+      &nbsp;›&nbsp;
+      ${safeTitle}
+    </div>
+
+    <h1>${safeTitle}</h1>
+
+    <p class="lead">
+      ${typeLabel}内容待完善。
+    </p>
+
+  </main>
+
+</body>
+</html>`;
+
+}    
   </script>
 
 </body>
