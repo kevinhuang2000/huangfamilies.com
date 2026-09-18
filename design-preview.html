@@ -2251,15 +2251,20 @@ function showNodeDraft(type) {
     generateNodeHTML(draft);
 
   output.innerHTML =
+    "<div style=\"padding:10px; background:#f0f0f0; border-radius:5px;\">" +
+    "<strong>Create Package</strong><br><br>" +
+    "<strong>动作：</strong>创建新" +
+    (draft.type === "folder" ? "目录" : "页面") + "<br>" +
     "<strong>Type：</strong>" + escapeHTML(draft.type) + "<br>" +
     "<strong>Title：</strong>" + escapeHTML(draft.title) + "<br>" +
     "<strong>Slug：</strong>" + escapeHTML(draft.slug) + "<br>" +
     "<strong>Parent：</strong>" + escapeHTML(draft.parentPath || "/") + "<br>" +
-    "<strong>Page ID：</strong>" + escapeHTML(draft.pageId) + "<br><br>" +
+    "<strong>文件路径：</strong>" + escapeHTML(draft.pageId) + "<br><br>" +
     "<strong>完整 HTML：</strong>" +
     "<textarea readonly style=\"margin-top:8px; min-height:260px; font-family:Consolas, monospace;\">" +
     escapeHTML(generatedHTML) +
-    "</textarea>";
+    "</textarea>" +
+    "</div>";
 
 }
 /*
