@@ -2181,7 +2181,31 @@ function getCurrentNodeParentPath() {
   Node Draft Builder
   =====================================================
 */
+function getRelativeHref(fromFile, toFile) {
 
+  const fromParts =
+    fromFile.split("/");
+
+  fromParts.pop();
+
+  const toParts =
+    toFile.split("/");
+
+  while (
+    fromParts.length > 0 &&
+    toParts.length > 0 &&
+    fromParts[0] === toParts[0]
+  ) {
+    fromParts.shift();
+    toParts.shift();
+  }
+
+  const up =
+    "../".repeat(fromParts.length);
+
+  return up + toParts.join("/");
+
+}
 function buildNodeDraft(type, title) {
 
   const cleanTitle =
@@ -2192,7 +2216,8 @@ function buildNodeDraft(type, title) {
 
   const parentPath =
     getCurrentNodeParentPath();
-
+  const parentPageId =
+    getCurrentPageId();
   let nodePath = "";
 
   if (type === "folder") {
@@ -2216,7 +2241,16 @@ function buildNodeDraft(type, title) {
     title: cleanTitle,
     slug: slug,
     parentPath: parentPath,
-    pageId: nodePath
+    parentPageId: parentPageId,
+
+    draftPath:
+      "_drafts/" + nodePath,
+
+    publishPath:
+      nodePath,
+
+    pageId:
+      nodePath
   };
 
 }
@@ -2259,7 +2293,8 @@ function showNodeDraft(type) {
     "<strong>Title：</strong>" + escapeHTML(draft.title) + "<br>" +
     "<strong>Slug：</strong>" + escapeHTML(draft.slug) + "<br>" +
     "<strong>Parent：</strong>" + escapeHTML(draft.parentPath || "/") + "<br>" +
-    "<strong>文件路径：</strong>" + escapeHTML(draft.pageId) + "<br><br>" +
+        "<strong>Draft Path：</strong>" + escapeHTML(draft.draftPath) + "<br>" +
+    "<strong>Publish Path：</strong>" + escapeHTML(draft.publishPath) + "<br><br>" +
     "<strong>完整 HTML：</strong>" +
     "<textarea readonly style=\"margin-top:8px; min-height:260px; font-family:Consolas, monospace;\">" +
     escapeHTML(generatedHTML) +
@@ -2302,9 +2337,10 @@ function generateNodeHTML(draft) {
     escapeHTML(draft.title);
 
   const parentHref =
-    draft.parentPath
-      ? "../index.html"
-      : "index.html";
+    getRelativeHref(
+      draft.publishPath,
+      draft.parentPageId
+    );
 
   const typeLabel =
     draft.type === "folder"
