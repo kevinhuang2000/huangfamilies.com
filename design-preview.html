@@ -2244,7 +2244,7 @@ function buildNodeDraft(type, title) {
     parentPageId: parentPageId,
 
     draftPath:
-      "_drafts/" + nodePath,
+      nodePath,
 
     publishPath:
       nodePath,
@@ -2293,7 +2293,9 @@ function showNodeDraft(type) {
     "<strong>Title：</strong>" + escapeHTML(draft.title) + "<br>" +
     "<strong>Slug：</strong>" + escapeHTML(draft.slug) + "<br>" +
     "<strong>Parent：</strong>" + escapeHTML(draft.parentPath || "/") + "<br>" +
-        "<strong>Draft Path：</strong>" + escapeHTML(draft.draftPath) + "<br>" +
+    "<strong>Draft Branch：</strong>draft<br>" +
+    "<strong>Draft Path：</strong>" + escapeHTML(draft.draftPath) + "<br>" +
+    "<strong>Publish Branch：</strong>main<br>" +
     "<strong>Publish Path：</strong>" + escapeHTML(draft.publishPath) + "<br><br>" +
     "<strong>完整 HTML：</strong>" +
     "<textarea readonly style=\"margin-top:8px; min-height:260px; font-family:Consolas, monospace;\">" +
