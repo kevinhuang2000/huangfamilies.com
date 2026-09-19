@@ -913,7 +913,9 @@ pageSelect.value =
     );
 
   }
-
+if (currentVirtualPageId) {
+  renderVirtualChildren(currentVirtualPageId);
+}
 buildElementList();
 
 const restoredCount =
@@ -1755,30 +1757,24 @@ if (!hasDirectText && !isImage) {
       "click",
       function (event) {
 
-        /*
-          Ctrl + 点击链接：
-          不装修，直接在左侧预览区进入该页面
-        */
-
         const link =
           element.closest("a");
 
-if (event.ctrlKey && link) {
-
-  event.preventDefault();
-  event.stopPropagation();
-
-  navigatePreviewLink(link);
-
-  return;
-
-}
-
-
         /*
-          普通单击：
-          阻止链接跳转，进入装修模式
+          Published-equivalent interaction：
+
+          - 普通点击链接 = 按 Published 语义导航。
+          - Ctrl + 点击链接 = 不导航，进入装修模式。
+          - 非链接文字 = 继续按原逻辑进入装修模式。
         */
+        if (link && !event.ctrlKey) {
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          navigatePreviewLink(link);
+          return;
+        }
 
         event.preventDefault();
         event.stopPropagation();
@@ -1808,58 +1804,90 @@ if (event.ctrlKey && link) {
   =====================================================
 */
 /*
+/*
   =====================================================
-  Published-equivalent Navigation Router v0.1
+  Published-equivalent Navigation Router v0.2
   =====================================================
 
   目标：
-  装修台中的链接点击结果，
-  与 Published 后的导航结果保持一致。
-
-  - 如果目标已经是 Virtual Node：
-    直接在装修台加载 Virtual Node。
-  - 如果目标不是 Virtual Node：
-    按真实 href 导航。
+  1. 正常 href：按当前 Content Node 的正式路径解析。
+  2. href="#"：只在“当前父节点下存在唯一同名 Child Node”时映射。
+  3. 已存在 Virtual Node：进入 Virtual Node。
+  4. 不允许模糊猜测；0 个或多个匹配都不导航。
 */
+function getPreviewLinkLabel(link) {
 
-function navigatePreviewLink(link) {
+  const heading =
+    link.querySelector("h1, h2, h3, h4, h5, h6");
 
-  if (!link) {
-    return false;
+  const rawLabel =
+    heading
+      ? heading.textContent
+      : (
+          link.getAttribute("data-node-title") ||
+          link.getAttribute("aria-label") ||
+          link.textContent ||
+          ""
+        );
+
+  return rawLabel
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findUniqueVirtualChildTarget(link) {
+
+  const currentPageId =
+    getCurrentPageId();
+
+  const label =
+    getPreviewLinkLabel(link);
+
+  if (!label) {
+    return "";
   }
 
-  const rawHref =
-    link.getAttribute("href") || "";
+  const matches =
+    Object.values(virtualNodes)
+      .filter(function (node) {
+        return (
+          node.parentPageId === currentPageId &&
+          node.title === label
+        );
+      });
 
-  if (
-    !rawHref ||
-    rawHref === "#" ||
-    rawHref.startsWith("javascript:")
-  ) {
-    return false;
+  if (matches.length !== 1) {
+
+    statusBox.textContent =
+      matches.length === 0
+        ? "未找到唯一 Content Node 目标：" + label
+        : "发现多个同名 Content Node，停止导航：" + label;
+
+    return "";
   }
+
+  return matches[0].pageId;
+}
+
+function resolvePreviewTargetPageId(rawHref) {
+
+  const currentPageId =
+    getCurrentPageId();
+
+  const baseUrl =
+    new URL(
+      currentPageId,
+      "https://preview.local/"
+    );
 
   const targetUrl =
-    new URL(
-      link.href,
-      previewFrame.contentWindow.location.href
-    );
+    new URL(rawHref, baseUrl);
 
   let targetPageId =
     targetUrl.pathname
       .split("/")
       .filter(Boolean)
       .join("/");
-
-  const repoMarker =
-    "huangfamilies.com/";
-
-  if (targetPageId.includes(repoMarker)) {
-
-    targetPageId =
-      targetPageId.split(repoMarker)[1];
-
-  }
 
   if (!targetPageId) {
     targetPageId = "index.html";
@@ -1872,19 +1900,53 @@ function navigatePreviewLink(link) {
     targetPageId += "/index.html";
   }
 
+  return targetPageId;
+}
+
+function navigatePreviewLink(link) {
+
+  if (!link) {
+    return false;
+  }
+
+  const rawHref =
+    (link.getAttribute("href") || "").trim();
+
+  if (
+    !rawHref ||
+    rawHref.startsWith("javascript:")
+  ) {
+    return false;
+  }
+
+  let targetPageId = "";
+
+  if (rawHref === "#") {
+
+    targetPageId =
+      findUniqueVirtualChildTarget(link);
+
+    if (!targetPageId) {
+      return false;
+    }
+
+  } else {
+
+    targetPageId =
+      resolvePreviewTargetPageId(rawHref);
+
+  }
+
   if (virtualNodes[targetPageId]) {
 
     loadVirtualNode(targetPageId);
-
     return true;
   }
 
   currentVirtualPageId = "";
 
   previewFrame.removeAttribute("srcdoc");
-
-  previewFrame.src =
-    targetPageId;
+  previewFrame.src = targetPageId;
 
   return true;
 }
@@ -2483,6 +2545,133 @@ function loadVirtualNode(pageId) {
 
   return true;
 
+}    
+/*
+  =====================================================
+  Virtual Draft Tree｜Child Navigation Renderer v0.1
+  =====================================================
+
+  每次进入 Virtual Folder 时，按 parentPageId 动态读取子节点。
+  这样后创建的 Child Node 也会自动出现在父目录中，
+  不需要重新生成父页面 HTML。
+*/
+function renderVirtualChildren(pageId) {
+
+  const node =
+    virtualNodes[pageId];
+
+  if (!node || node.type !== "folder") {
+    return;
+  }
+
+  const doc =
+    previewFrame.contentDocument ||
+    previewFrame.contentWindow.document;
+
+  const main =
+    doc.querySelector("main");
+
+  if (!main) {
+    return;
+  }
+
+  const oldList =
+    doc.getElementById("virtualChildList");
+
+  if (oldList) {
+    oldList.remove();
+  }
+
+  const children =
+    Object.values(virtualNodes)
+      .filter(function (child) {
+        return child.parentPageId === pageId;
+      })
+      .sort(function (a, b) {
+        return a.title.localeCompare(b.title, "zh-CN");
+      });
+
+  if (children.length === 0) {
+    return;
+  }
+
+  const list =
+    doc.createElement("div");
+
+  list.id =
+    "virtualChildList";
+
+  list.style.display =
+    "grid";
+
+  list.style.gap =
+    "14px";
+
+  list.style.marginTop =
+    "36px";
+
+  children.forEach(function (child) {
+
+    const link =
+      doc.createElement("a");
+
+    link.href =
+      getRelativeHref(
+        node.publishPath,
+        child.publishPath
+      );
+
+    link.style.display =
+      "block";
+
+    link.style.padding =
+      "20px 22px";
+
+    link.style.border =
+      "1px solid rgba(41, 39, 34, 0.18)";
+
+    link.style.borderRadius =
+      "8px";
+
+    link.style.color =
+      "inherit";
+
+    link.style.textDecoration =
+      "none";
+
+    const title =
+      doc.createElement("h2");
+
+    title.textContent =
+      child.title;
+
+    title.style.margin =
+      "0 0 8px";
+
+    title.style.fontSize =
+      "24px";
+
+    const meta =
+      doc.createElement("p");
+
+    meta.textContent =
+      child.type === "folder"
+        ? "进入目录"
+        : "打开页面";
+
+    meta.style.margin =
+      "0";
+
+    meta.style.opacity =
+      "0.68";
+
+    link.appendChild(title);
+    link.appendChild(meta);
+    list.appendChild(link);
+
+  });
+
+  main.appendChild(list);
 }    
 function getRelativeHref(fromFile, toFile) {
 
