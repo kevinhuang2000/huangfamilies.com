@@ -1763,17 +1763,16 @@ if (!hasDirectText && !isImage) {
         const link =
           element.closest("a");
 
-        if (event.ctrlKey && link) {
+if (event.ctrlKey && link) {
 
-          event.preventDefault();
-          event.stopPropagation();
+  event.preventDefault();
+  event.stopPropagation();
 
-          previewFrame.contentWindow.location.href =
-            link.href;
+  navigatePreviewLink(link);
 
-          return;
+  return;
 
-        }
+}
 
 
         /*
@@ -1808,7 +1807,87 @@ if (!hasDirectText && !isImage) {
   自动生成唯一 selector
   =====================================================
 */
+/*
+  =====================================================
+  Published-equivalent Navigation Router v0.1
+  =====================================================
 
+  目标：
+  装修台中的链接点击结果，
+  与 Published 后的导航结果保持一致。
+
+  - 如果目标已经是 Virtual Node：
+    直接在装修台加载 Virtual Node。
+  - 如果目标不是 Virtual Node：
+    按真实 href 导航。
+*/
+
+function navigatePreviewLink(link) {
+
+  if (!link) {
+    return false;
+  }
+
+  const rawHref =
+    link.getAttribute("href") || "";
+
+  if (
+    !rawHref ||
+    rawHref === "#" ||
+    rawHref.startsWith("javascript:")
+  ) {
+    return false;
+  }
+
+  const targetUrl =
+    new URL(
+      link.href,
+      previewFrame.contentWindow.location.href
+    );
+
+  let targetPageId =
+    targetUrl.pathname
+      .split("/")
+      .filter(Boolean)
+      .join("/");
+
+  const repoMarker =
+    "huangfamilies.com/";
+
+  if (targetPageId.includes(repoMarker)) {
+
+    targetPageId =
+      targetPageId.split(repoMarker)[1];
+
+  }
+
+  if (!targetPageId) {
+    targetPageId = "index.html";
+  }
+
+  const lastPart =
+    targetPageId.split("/").pop();
+
+  if (!lastPart.includes(".")) {
+    targetPageId += "/index.html";
+  }
+
+  if (virtualNodes[targetPageId]) {
+
+    loadVirtualNode(targetPageId);
+
+    return true;
+  }
+
+  currentVirtualPageId = "";
+
+  previewFrame.removeAttribute("srcdoc");
+
+  previewFrame.src =
+    targetPageId;
+
+  return true;
+}
 function createUniqueSelector(element) {
 
   const doc =
