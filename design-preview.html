@@ -325,6 +325,61 @@
   </div>
 
 </div>
+<!--
+  =====================================================
+  Block Editor MVP v0.1
+  =====================================================
+-->
+
+<div
+  class="control-group"
+  id="blockEditor">
+
+  <label>
+    页面内容 Block
+  </label>
+
+  <div
+    style="
+      font-size:12px;
+      line-height:1.6;
+      color:#777;
+      margin-bottom:8px;
+    ">
+    先点左侧某个正文 Block，
+    新内容会插在它后面；
+    未选择时添加到正文末尾。
+  </div>
+
+  <div
+    style="
+      display:grid;
+      grid-template-columns:
+        1fr 1fr 1fr;
+      gap:6px;
+    ">
+
+    <button
+      type="button"
+      id="addHeadingBlockButton">
+      ＋ 标题
+    </button>
+
+    <button
+      type="button"
+      id="addTextBlockButton">
+      ＋ 文字
+    </button>
+
+    <button
+      type="button"
+      id="addImageBlockButton">
+      ＋ 图片
+    </button>
+
+  </div>
+
+</div>      
 <div class="status" id="saveStatusBox">
   ○ 尚无待发布修改
 </div>
@@ -684,7 +739,23 @@ const imageRadius =
 
 const saveStatusBox =
   document.getElementById("saveStatusBox");
-    let selectedElement = null;
+
+const addHeadingBlockButton =
+  document.getElementById(
+    "addHeadingBlockButton"
+  );
+
+const addTextBlockButton =
+  document.getElementById(
+    "addTextBlockButton"
+  );
+
+const addImageBlockButton =
+  document.getElementById(
+    "addImageBlockButton"
+  );
+
+let selectedElement = null;
 
     let originalStyle = "";
     let originalHTML = "";
@@ -706,7 +777,108 @@ const saveStatusBox =
 
     const VIRTUAL_NODE_STORAGE_KEY =
       "huangfamilies-virtual-nodes-v0.1";
+/*
+  =====================================================
+  Block Content Model v0.1
+  Page = Blocks
+  =====================================================
 
+  Block 只负责页面内容。
+  Branch 管版本；Node 管位置；Block 管内容。
+
+  MVP Block：
+  1. heading
+  2. text
+  3. image
+*/
+
+const BLOCK_STORAGE_KEY =
+  "huangfamilies-page-blocks-v0.1";
+
+let pageBlocks =
+  loadPageBlocks();
+
+
+function loadPageBlocks() {
+
+  try {
+
+    const saved =
+      localStorage.getItem(
+        BLOCK_STORAGE_KEY
+      );
+
+    return saved
+      ? JSON.parse(saved)
+      : {};
+
+  } catch (error) {
+
+    console.log(
+      "读取 Page Blocks 失败：",
+      error
+    );
+
+    return {};
+
+  }
+
+}
+
+
+function writePageBlocks() {
+
+  try {
+
+    localStorage.setItem(
+      BLOCK_STORAGE_KEY,
+      JSON.stringify(pageBlocks)
+    );
+
+  } catch (error) {
+
+    console.log(
+      "保存 Page Blocks 失败：",
+      error
+    );
+
+  }
+
+}
+
+
+function createBlockId() {
+
+  return (
+    "block-" +
+    Date.now().toString(36) +
+    "-" +
+    Math.random()
+      .toString(36)
+      .slice(2, 8)
+  );
+
+}
+
+
+function normalizeBlockOrder(pageId) {
+
+  if (
+    !pageBlocks[pageId] ||
+    !Array.isArray(pageBlocks[pageId])
+  ) {
+    return;
+  }
+
+  pageBlocks[pageId]
+    .forEach(function (block, index) {
+
+      block.order =
+        index + 1;
+
+    });
+
+}
     let savedChanges =
       loadSavedChanges();
 
@@ -916,6 +1088,9 @@ pageSelect.value =
 if (currentVirtualPageId) {
   renderVirtualChildren(currentVirtualPageId);
 }
+
+ensureBlockStructureForCurrentPage();
+
 buildElementList();
 
 const restoredCount =
@@ -1017,7 +1192,406 @@ function getCurrentPageId() {
     /*
       建立当前页面可编辑对象列表
     */
+/*
+  =====================================================
+  Block Content Model v0.1
+  Legacy Page → Block Page Upgrade
+  =====================================================
 
+  目标：
+  1. 已经是 Block Page：不重复处理。
+  2. 旧 Virtual Page：保留现有内容。
+  3. breadcrumb / navigation 不进入 Block。
+  4. h1 = Heading Block。
+  5. h1 后、导航前的正文 = Content Blocks。
+*/
+
+function ensureBlockStructureForCurrentPage() {
+
+  const doc =
+    previewFrame.contentDocument ||
+    previewFrame.contentWindow.document;
+
+  const pageId =
+    getCurrentPageId();
+
+  const main =
+    doc.querySelector("main");
+
+  if (!main || !pageId) {
+    return;
+  }
+
+
+  /*
+    =====================================================
+    Step 1｜保证 Page 有 Block DOM 结构
+    =====================================================
+  */
+
+  let heading =
+    main.querySelector("h1");
+
+  if (!heading) {
+    return;
+  }
+
+
+  if (!heading.dataset.blockId) {
+
+    heading.dataset.blockId =
+      createBlockId();
+
+  }
+
+  heading.dataset.blockType =
+    "heading";
+
+
+  let container =
+    doc.querySelector(
+      '[data-block-container="true"]'
+    );
+
+
+  /*
+    Legacy Page：
+    第一次进入时建立正文 Block Container。
+  */
+
+  if (!container) {
+
+    container =
+      doc.createElement("div");
+
+    container.id =
+      "pageBlocks";
+
+    container.dataset.blockContainer =
+      "true";
+
+
+    const contentElements = [];
+
+    let current =
+      heading.nextElementSibling;
+
+
+    while (current) {
+
+      const next =
+        current.nextElementSibling;
+
+      /*
+        Child Navigation 不是正文 Block。
+      */
+
+      if (
+        current.id !==
+        "virtualChildList"
+      ) {
+
+        contentElements.push(
+          current
+        );
+
+      }
+
+      current = next;
+
+    }
+
+
+    heading.insertAdjacentElement(
+      "afterend",
+      container
+    );
+
+
+    contentElements.forEach(
+      function (element) {
+
+        let blockType =
+          "text";
+
+
+        if (
+          /^H[1-6]$/.test(
+            element.tagName
+          )
+        ) {
+
+          blockType =
+            "heading";
+
+        } else if (
+          element.tagName === "IMG"
+        ) {
+
+          blockType =
+            "image";
+
+        }
+
+
+        element.dataset.blockId =
+          element.dataset.blockId ||
+          createBlockId();
+
+        element.dataset.blockType =
+          blockType;
+
+        container.appendChild(
+          element
+        );
+
+      }
+    );
+
+  }
+
+
+  /*
+    =====================================================
+    Step 2｜如果这个 Page 已经有 Saved Blocks
+    Saved Blocks 才是 Block Content Source。
+    =====================================================
+  */
+
+  const storedBlocks =
+    pageBlocks[pageId];
+
+
+  if (
+    Array.isArray(storedBlocks) &&
+    storedBlocks.length > 0
+  ) {
+
+    /*
+      Heading Block 单独恢复。
+    */
+
+    const headingBlock =
+      storedBlocks.find(
+        function (block) {
+          return block.type === "heading";
+        }
+      );
+
+
+    if (headingBlock) {
+
+      heading.dataset.blockId =
+        headingBlock.blockId;
+
+      heading.dataset.blockType =
+        "heading";
+
+      heading.textContent =
+        headingBlock.content || "";
+
+    }
+
+
+    /*
+      清空正文 Container，
+      按 Saved Blocks 顺序重新生成。
+    */
+
+    container.innerHTML = "";
+
+
+    storedBlocks
+      .slice()
+      .sort(function (a, b) {
+
+        return (
+          (a.order || 0) -
+          (b.order || 0)
+        );
+
+      })
+      .forEach(function (block) {
+
+        /*
+          页面主 Heading 已经恢复，
+          不重复放进正文 Container。
+        */
+
+        if (
+          block.type === "heading" &&
+          headingBlock &&
+          block.blockId ===
+            headingBlock.blockId
+        ) {
+          return;
+        }
+
+
+        let element = null;
+
+
+        if (block.type === "image") {
+
+          element =
+            doc.createElement("img");
+
+          element.src =
+            block.src || "";
+
+          element.alt =
+            block.alt || "";
+
+          element.style.maxWidth =
+            "100%";
+
+          element.style.display =
+            "block";
+
+        } else if (
+          block.type === "heading"
+        ) {
+
+          element =
+            doc.createElement("h2");
+
+          element.textContent =
+            block.content || "";
+
+        } else {
+
+          element =
+            doc.createElement("p");
+
+          element.className =
+            "lead";
+
+          element.textContent =
+            block.content || "";
+
+        }
+
+
+        element.dataset.blockId =
+          block.blockId;
+
+        element.dataset.blockType =
+          block.type;
+
+
+        container.appendChild(
+          element
+        );
+
+      });
+
+
+    /*
+      Saved Blocks 已经恢复完成。
+      绝对不能再用旧 DOM 覆盖 Storage。
+    */
+
+    return;
+
+  }
+
+
+  /*
+    =====================================================
+    Step 3｜第一次迁移：
+    DOM → Page Blocks
+    =====================================================
+  */
+
+  const blocks = [];
+
+
+  blocks.push({
+
+    blockId:
+      heading.dataset.blockId,
+
+    type:
+      "heading",
+
+    order:
+      1,
+
+    content:
+      heading.innerText,
+
+    style: {}
+
+  });
+
+
+  container
+    .querySelectorAll(
+      "[data-block-type]"
+    )
+    .forEach(function (element) {
+
+      const type =
+        element.dataset.blockType;
+
+
+      const block = {
+
+        blockId:
+          element.dataset.blockId ||
+          createBlockId(),
+
+        type:
+          type,
+
+        order:
+          blocks.length + 1,
+
+        style: {}
+
+      };
+
+
+      element.dataset.blockId =
+        block.blockId;
+
+
+      if (type === "image") {
+
+        block.src =
+          element.getAttribute("src") ||
+          "";
+
+        block.alt =
+          element.getAttribute("alt") ||
+          "";
+
+      } else {
+
+        block.content =
+          element.innerText;
+
+      }
+
+
+      blocks.push(block);
+
+    });
+
+
+  pageBlocks[pageId] =
+    blocks;
+
+
+  normalizeBlockOrder(
+    pageId
+  );
+
+
+  writePageBlocks();
+
+
+}
 function buildElementList() {
 
   /*
@@ -1399,8 +1973,14 @@ imageRadius: imageRadius.value
     写入浏览器持久存储
   */
 
-  writeSavedChanges();
+writeSavedChanges();
 
+/*
+  如果当前装修对象属于 Block，
+  同时更新 Block Content Source。
+*/
+
+syncSelectedBlockToStorage();
 
 updateSaveStatus("saved");
 
@@ -2319,6 +2899,491 @@ function selectElementFromPreview(
     }
 /*
   =====================================================
+  Block Editor MVP v0.1
+  =====================================================
+*/
+
+function getCurrentBlockContext() {
+
+  const pageId =
+    getCurrentPageId();
+
+  const doc =
+    previewFrame.contentDocument ||
+    previewFrame.contentWindow.document;
+
+  const container =
+    doc.querySelector(
+      '[data-block-container="true"]'
+    );
+
+  if (
+    !pageId ||
+    !container ||
+    !Array.isArray(pageBlocks[pageId])
+  ) {
+    return null;
+  }
+
+  return {
+    pageId: pageId,
+    doc: doc,
+    container: container,
+    blocks: pageBlocks[pageId]
+  };
+
+}
+
+
+function syncSelectedBlockToStorage() {
+
+  if (
+    !selectedElement ||
+    !selectedElement.dataset ||
+    !selectedElement.dataset.blockId
+  ) {
+    return;
+  }
+
+  const context =
+    getCurrentBlockContext();
+
+  if (!context) {
+    return;
+  }
+
+  const blockId =
+    selectedElement.dataset.blockId;
+
+  const block =
+    context.blocks.find(
+      function (item) {
+        return item.blockId === blockId;
+      }
+    );
+
+  if (!block) {
+    return;
+  }
+
+
+  if (block.type === "image") {
+
+    block.src =
+      selectedElement.getAttribute("src") ||
+      "";
+
+    block.alt =
+      selectedElement.getAttribute("alt") ||
+      "";
+
+  } else {
+
+    block.content =
+      selectedElement.innerText;
+
+  }
+
+
+  block.style = {
+
+    fontFamily:
+      fontFamily.value,
+
+    fontSize:
+      fontSize.value,
+
+    fontWeight:
+      fontWeight.value,
+
+    color:
+      fontColorText.value,
+
+    lineHeight:
+      lineHeight.value,
+
+    letterSpacing:
+      letterSpacing.value,
+
+    moveX:
+      moveX.value,
+
+    moveY:
+      moveY.value,
+
+    imageWidth:
+      imageWidth.value,
+
+    imageRadius:
+      imageRadius.value
+
+  };
+
+
+  writePageBlocks();
+
+}
+
+
+function createBlockElement(
+  doc,
+  block
+) {
+
+  let element = null;
+
+
+  if (block.type === "image") {
+
+    element =
+      doc.createElement("img");
+
+    element.src =
+      block.src || "";
+
+    element.alt =
+      block.alt || "";
+
+    element.style.display =
+      "block";
+
+    element.style.maxWidth =
+      "100%";
+
+    element.style.width =
+      "100%";
+
+    element.style.margin =
+      "24px auto";
+
+
+  } else if (
+    block.type === "heading"
+  ) {
+
+    element =
+      doc.createElement("h2");
+
+    element.textContent =
+      block.content || "新标题";
+
+
+  } else {
+
+    element =
+      doc.createElement("p");
+
+    element.className =
+      "lead";
+
+    element.textContent =
+      block.content || "请输入文字……";
+
+  }
+
+
+  element.dataset.blockId =
+    block.blockId;
+
+  element.dataset.blockType =
+    block.type;
+
+
+  return element;
+
+}
+
+
+function addBlock(type) {
+
+  const context =
+    getCurrentBlockContext();
+
+  if (!context) {
+
+    statusBox.textContent =
+      "当前页面尚未进入 Block 模式。";
+
+    return;
+
+  }
+
+
+  const block = {
+
+    blockId:
+      createBlockId(),
+
+    type:
+      type,
+
+    order:
+      0,
+
+    style: {}
+
+  };
+
+
+  if (type === "image") {
+
+    const imageUrl =
+      window.prompt(
+        "请输入图片 URL：",
+        ""
+      );
+
+    if (!imageUrl) {
+      return;
+    }
+
+    block.src =
+      imageUrl.trim();
+
+    block.alt =
+      "";
+
+  } else if (
+    type === "heading"
+  ) {
+
+    block.content =
+      "新标题";
+
+  } else {
+
+    block.content =
+      "请输入文字……";
+
+  }
+
+
+  /*
+    如果当前选中了正文 Block，
+    插到它后面。
+
+    否则插到正文末尾。
+  */
+
+  let insertIndex =
+    context.blocks.length;
+
+
+  if (
+    selectedElement &&
+    selectedElement.dataset &&
+    selectedElement.dataset.blockId
+  ) {
+
+    const selectedBlockId =
+      selectedElement.dataset.blockId;
+
+    const selectedIndex =
+      context.blocks.findIndex(
+        function (item) {
+
+          return (
+            item.blockId ===
+            selectedBlockId
+          );
+
+        }
+      );
+
+
+    if (selectedIndex >= 0) {
+
+      insertIndex =
+        selectedIndex + 1;
+
+    }
+
+  }
+
+
+  context.blocks.splice(
+    insertIndex,
+    0,
+    block
+  );
+
+
+  normalizeBlockOrder(
+    context.pageId
+  );
+
+  writePageBlocks();
+
+
+  /*
+    DOM 同步：
+    不重新加载整个页面，
+    直接把新 Block 放进去。
+  */
+
+  const element =
+    createBlockElement(
+      context.doc,
+      block
+    );
+
+
+  let referenceElement =
+    null;
+
+
+  if (
+    insertIndex > 0
+  ) {
+
+    const previousBlock =
+      context.blocks[
+        insertIndex - 1
+      ];
+
+    referenceElement =
+      context.doc.querySelector(
+        '[data-block-id="' +
+        CSS.escape(
+          previousBlock.blockId
+        ) +
+        '"]'
+      );
+
+  }
+
+
+  if (
+    referenceElement &&
+    referenceElement !==
+      context.doc.querySelector("h1")
+  ) {
+
+    referenceElement
+      .insertAdjacentElement(
+        "afterend",
+        element
+      );
+
+  } else {
+
+    const contentChildren =
+      Array.from(
+        context.container.children
+      );
+
+    const contentIndex =
+      context.blocks
+        .slice(0, insertIndex)
+        .filter(function (item) {
+
+          return (
+            item.type !==
+            "heading" ||
+            item.blockId !==
+            context.blocks[0].blockId
+          );
+
+        })
+        .length;
+
+
+    if (
+      contentIndex <
+      contentChildren.length
+    ) {
+
+      context.container.insertBefore(
+        element,
+        contentChildren[
+          contentIndex
+        ]
+      );
+
+    } else {
+
+      context.container.appendChild(
+        element
+      );
+
+    }
+
+  }
+
+
+  /*
+    新元素加入直接点选系统。
+  */
+
+  enableDirectSelection();
+
+
+  const selector =
+    '[data-block-id="' +
+    CSS.escape(block.blockId) +
+    '"]';
+
+  const label =
+    createElementLabel(element);
+
+
+  selectElementFromPreview(
+    selector,
+    label,
+    element
+  );
+
+
+  statusBox.textContent =
+    "已添加 " +
+    (
+      type === "heading"
+        ? "标题"
+        : type === "image"
+          ? "图片"
+          : "文字"
+    ) +
+    " Block，并已自动保存。";
+
+}
+
+
+document
+  .getElementById(
+    "addHeadingBlockButton"
+  )
+  .addEventListener(
+    "click",
+    function () {
+      addBlock("heading");
+    }
+  );
+
+
+document
+  .getElementById(
+    "addTextBlockButton"
+  )
+  .addEventListener(
+    "click",
+    function () {
+      addBlock("text");
+    }
+  );
+
+
+document
+  .getElementById(
+    "addImageBlockButton"
+  )
+  .addEventListener(
+    "click",
+    function () {
+      addBlock("image");
+    }
+  );    
+/*
+  =====================================================
   Content Node Creator v0.1
   Slug Helper
   =====================================================
@@ -2911,11 +3976,24 @@ function generateNodeHTML(draft) {
       ${safeTitle}
     </div>
 
-    <h1>${safeTitle}</h1>
+<h1
+  data-block-id="block-heading"
+  data-block-type="heading">
+  ${safeTitle}
+</h1>
 
-    <p class="lead">
-      ${typeLabel}内容待完善。
-    </p>
+<div
+  id="pageBlocks"
+  data-block-container="true">
+
+  <p
+    class="lead"
+    data-block-id="block-text-1"
+    data-block-type="text">
+    ${typeLabel}内容待完善。
+  </p>
+
+</div>
 
   </main>
 
