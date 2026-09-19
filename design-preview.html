@@ -1884,7 +1884,9 @@ function resolvePreviewTargetPageId(rawHref) {
     new URL(rawHref, baseUrl);
 
   let targetPageId =
-    targetUrl.pathname
+    decodeURIComponent(
+      targetUrl.pathname
+    )
       .split("/")
       .filter(Boolean)
       .join("/");
